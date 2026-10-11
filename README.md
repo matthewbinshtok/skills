@@ -10,4 +10,4 @@ these skills are my attempt to do that: spend less time repeating the same guida
 
 hopefully, these skills can help you do the same.
 
-¯\\_(ツ)_/¯
+¯\\\_(ツ)\_/¯
