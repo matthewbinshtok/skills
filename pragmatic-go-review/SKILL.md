@@ -9,59 +9,32 @@ Review the requested scope. Propose changes as findings unless implementation is
 
 ## Workflow
 
-1. Read repository instructions and establish scope and intended behavior. Read relevant callers, dependency construction, implementations, and tests alongside the code under review.
-2. Trace success and failure paths, including errors, cancellation, shared state, background work, and cleanup. Inspect test coverage; run focused checks when useful to resolve a concern.
-3. Apply the standard and abstraction check below. Ground findings in code and concrete consequences. For clarity or maintainability findings, identify ownership ambiguity, unnecessary navigation, scattered invariants, or caller complexity. For missing-test findings, identify the specific unprotected behavior.
+1. Establish scope and intended behavior from repository instructions, callers, dependency construction, implementations, and tests.
+2. Trace success, failure, cancellation, shared state, background work, and cleanup. Run focused checks to resolve uncertainty.
+3. Apply the standard below. Ground findings in code and consequences: ambiguous ownership, needless navigation, scattered invariants, caller complexity, or a specific unprotected behavior. Recommend the smallest useful improvement; avoid arbitrary style thresholds.
 
-## Style standard
+## Standard
 
-Write explicit, pragmatic Go. Optimize for a reader following an operation from entry point to result.
+Make an operation easy to follow from entry point to result. Respect repository contracts and conventions; change a design to solve a concrete problem in scope.
 
-Respect established repository contracts and conventions. Recommend changing an existing design only to address a concrete problem in scope, not solely to match these defaults.
+- **Make ownership visible.** Wire dependencies at `main` or `run` with constructors and struct literals. Organize packages by capability and files by concern. Keep related policy, caching, and bookkeeping behind a cohesive API. Make it clear who starts background work, cancels it, waits, and closes resources.
 
-### Structure and composition
+- **Make abstractions earn their place.** Use concrete types by default. A boundary should simplify callers, own an invariant, isolate external I/O, or support a needed substitution or failure test. One implementation can be enough. Keep interfaces small and consumer-owned; cleanup methods belong with the cleanup owner. Prefer standard interfaces or functions when they fit.
 
-- Wire dependencies explicitly at the composition root, usually `main` or `run`, using ordinary constructors and struct literals. Keep the dependency graph visible.
-- Give components meaningful responsibilities. A store can own source access, caching, and associated bookkeeping behind a small API. Extract a layer when it makes the caller simpler or supports an actual substitution.
-- Organize by capability. Use packages such as `authentication`, `keys`, and `cryptography`. Within a cohesive package, split files by operation or concern; a file boundary does not require another interface or architectural layer.
-- Keep lifecycle ownership explicit. Make it clear who starts background work, cancels it, waits for completion, and closes resources.
+- **Remove empty layers.** Let implementations satisfy consumer interfaces directly; align contracts you own. Retain adapters for meaningful conversion or external constraints. Use decorators for independently composable behavior. Share operations and invariants, not similar syntax; modest repetition is fine. Use generics for concrete reuse.
 
-### Interfaces and abstractions
+- **Keep the operation visible.** Preserve decision order. Use descriptive values, early error returns, blank lines, and short phase comments to expose execution and ownership. Prefer local clarity before extracting readability-only helpers; extract meaningful complexity. Expand lifecycle goroutines so starting work and waiting are distinct.
 
-- Use concrete types by default. Introduce small interfaces where a consumer needs a replaceable capability—for example, a database reader, key provider, or external client.
-- Define interfaces near their consumers, with only the methods those consumers need. Prefer an existing standard-library interface or a function when it fits.
-- Require a present-day reason for each abstraction. Good reasons include isolating external I/O, supporting existing implementations, centralizing a meaningful invariant, or testing failure behavior.
-- Use decorators selectively. They fit independently composable behavior. Local caching or instrumentation can remain inside the component that owns it when that produces clearer code.
-- Allow modest repetition. Keep distinct business paths recognizable. Extract shared code when it represents the same operation or invariant, rather than merely similar syntax.
-- Use generics for concrete reuse. Keep type parameters out of code that becomes clearer with ordinary types and functions.
+- **Preserve contracts.** Wrap errors with `%w` when adding context; present transport errors at the transport boundary. Explain non-obvious precedence, absence, freshness, and operational tradeoffs. Keep inferable execution flow in code rather than repeating it in documentation. Prefer the standard library; dependencies need a concrete correctness, maintenance, or measured performance benefit.
 
-### Implementation
+- **Make concurrency locally understandable.** Keep synchronization with the state it protects. Honor caller cancellation and deadlines.
 
-- Write operations as linear sequences. Use descriptive intermediate values, early validation, and early error returns. Keep the successful path easy to scan.
-- Prefer standard-library solutions. Add dependencies when they materially improve correctness, maintainability, or measured performance.
-- Preserve useful error identity. Add context with `%w` when wrapping errors; handle transport-specific error presentation at the transport boundary.
-- Use comments to make the code navigable. Introduce meaningful phases in longer functions, explain component responsibilities, and document behavioral contracts, invariants, and operational reasoning. Brief "what happens next" comments are useful when they orient the reader; avoid narrating individual statements or merely repeating names.
-- Make concurrency understandable locally. Keep synchronization and the state it protects together. Honor caller cancellation and deadlines.
-
-### Tests
-
-- Prefer small handwritten fakes at dependency boundaries; reuse suitable existing test doubles.
-- Test observable behavior, failure paths, and meaningful invariants.
-- Assert dependency call counts when they establish a contract, such as avoiding a source read on a cache hit.
-
-## Abstraction check
-
-For each interface, wrapper, helper, or package in scope, inspect its consumers, implementations, invariants, and tests, then ask:
-
-1. What current problem or meaningful complexity does this abstraction address?
-2. Does it make the operation easier to understand than a direct implementation?
-
-An external I/O boundary or a need to test failures can justify an interface with a single implementation. A finding needs more evidence than the presence of a particular pattern.
+- **Test the promised behavior.** Cover observable results, failures, and invariants. Use small boundary fakes, standard test servers, and focused fixtures; reuse suitable test doubles. Consolidate overlap while preserving distinct regressions. Synchronize deterministically or use `testing/synctest` where available. Check call counts when they prove a contract, such as avoiding reads on cache hits.
 
 ## Default findings format
 
-Use the requested format, or list concise findings in impact order with a priority (high, medium, or low), title, `file:line`, evidence and consequence, and the smallest useful improvement.
+Use the requested format, or list findings in impact order with priority (high, medium, low), title, `file:line`, evidence, consequence, and the smallest useful improvement.
 
-Distinguish facts from assumptions, resolve uncertain claims where possible, state material open questions, and consolidate findings with the same root cause.
+Distinguish facts from assumptions, resolve uncertain claims, state material open questions, and consolidate shared root causes. A pattern alone is not a finding; inspect its consumers, invariants, and tests.
 
-If there are no actionable findings, say so. Briefly report verification performed and any material behavior that remains unverified.
+If there are no actionable findings, say so. Report verification and material behavior that remains unverified.
